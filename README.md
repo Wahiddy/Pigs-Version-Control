@@ -33,6 +33,10 @@
   ```
   ./pigs-branch <branch-name>
   ```
+  * Delete
+  ```
+  ./pigs-branch -d <branch-name>
+  ```
 * **Log**: View commit history
 ```
 ./pigs-log
