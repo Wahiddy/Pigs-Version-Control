@@ -26,10 +26,10 @@
 
 * **Branch**: Manage branches
   * List
-```
-./pigs-branch
-```
+  ```
+  ./pigs-branch
+  ```
   * Create
-```
-./pigs-branch <branch-name>
-```
+  ```
+  ./pigs-branch <branch-name>
+  ```
