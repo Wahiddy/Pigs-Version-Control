@@ -1,0 +1,109 @@
+#!/bin/dash
+
+PATH="$PATH:$(pwd)"
+
+# To add files from index
+add_files() {
+    local TMP_FILE
+    TMP_FILE="$(mktemp)"
+    cut -d' ' -f3 < '.pig/index' > "$TMP_FILE"
+    while IFS= read -r line; do
+        pigs-add "$line"
+    done < "$TMP_FILE"
+}
+
+usage_error() {
+    echo "usage: pigs-commit [-a] -m commit-message" >&2
+    exit 1
+}
+
+pig_dir_error() {
+    echo "pigs-commit: error: pigs repository directory .pig not found" >&2
+    exit 1
+}
+
+# To check if there are changes to commit
+commit_check() {
+    local TMP_FILE1 TMP_FILE2
+    TMP_FILE1="$(mktemp)"
+    TMP_FILE2="$(mktemp)"
+
+    if [ ! -e '.pig/index' ]; then
+        echo "nothing to commit"                  # check if index exists
+        exit 0
+    fi
+
+    sort '.pig/index' > "$TMP_FILE1"
+    sort '.pig/prev_index' > "$TMP_FILE2"
+
+    if diff "$TMP_FILE1" "$TMP_FILE2" >/dev/null; then
+        echo "nothing to commit"
+        exit 0
+    fi
+}
+
+# To update the commit number
+update_commit() {
+    read -r idx < '.pig/objects/idx'         # read the current commit
+    echo $((idx + 1)) > '.pig/objects/idx'   # update the next commit number
+}
+
+# To create a snapshot of the index and commit message
+make_snapshot() {
+    cat '.pig/index' > ".pig/objects/trees/$idx"                  # put tracked files into a tree snapshot
+    echo "commit-message: $msg" > ".pig/objects/commits/$idx"     # create a commit file with the commit message
+}
+
+# To create or append to the commit log
+create_log() {
+    if [ ! -d '.pig/log' ]; then
+        mkdir '.pig/log'
+        mkdir '.pig/log/refs'                       # track branches
+        touch '.pig/log/refs/branches'
+        touch '.pig/log/HEAD'
+
+        echo 'master' > '.pig/log/refs/branches'    # master branch tracked
+        echo "$idx $msg" > '.pig/log/HEAD'          # append commit number : commit message
+    else
+        echo "$idx $msg" >> '.pig/log/HEAD'
+    fi
+}
+
+# Check for .pig folder
+if [ ! -d '.pig' ]; then
+    pig_dir_error
+fi
+
+# Get appropriate options and arguments
+if [ $# -lt 2 ] || [ $# -gt 3 ]; then
+    usage_error
+fi
+
+# Process options
+while getopts 'am:' OPTION 2> '/dev/null'; do
+    case "$OPTION" in
+        a)
+            add_files
+            ;;
+        m)
+            msg="$OPTARG"
+            ;;
+        *)
+            usage_error
+            ;;
+    esac
+done
+
+# Validate commit message
+if [ -z "$msg" ] || [ "$msg" = '-a' ]; then
+    usage_error
+fi
+
+# Perform commit checks
+commit_check
+update_commit
+make_snapshot
+create_log      # create a logs directory with a file called HEAD
+
+cat '.pig/index' > '.pig/prev_index'    # update prev_index to track changes
+echo "Committed as commit $idx"
