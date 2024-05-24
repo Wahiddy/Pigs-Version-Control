@@ -33,3 +33,22 @@
   ```
   ./pigs-branch <branch-name>
   ```
+* **Log**: View commit history
+```
+./pigs-log
+```
+
+* **Remove**: Delete files
+```
+./pigs-rm <filename>
+```
+
+* **Show**: Display Changes
+```
+./pigs-show
+```
+
+* **Status**: Check file status
+```
+./pigs-status
+```
