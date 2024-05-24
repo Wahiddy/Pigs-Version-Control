@@ -43,9 +43,10 @@
 ```
 
 * **Remove**: Delete files
-  ```
-  ./pigs-rm [--cached | --force] <filename>
-  ```
+```
+./pigs-rm [--cached | --force] <filename>
+```
+
 * **Show**: Display Changes
 ```
 ./pigs-show
