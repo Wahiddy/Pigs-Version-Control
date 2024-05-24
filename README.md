@@ -19,7 +19,17 @@
 ./pigs-add <filename>
 ```
 
-* **Commit**: Start tracking a project
+* **Commit**: Save changes
 ```
-./pigs-init
+./pigs-commit [-a | -m "msg"]
+```
+
+* **Branch**: Manage branches
+  * List
+```
+./pigs-branch
+```
+  * Create
+```
+./pigs-branch <branch-name>
 ```
