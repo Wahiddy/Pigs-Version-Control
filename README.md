@@ -13,3 +13,13 @@
 ```
 ./pigs-init
 ```
+
+* **Add**: Stage changes
+```
+./pigs-add <filename>
+```
+
+* **Commit**: Start tracking a project
+```
+./pigs-init
+```
