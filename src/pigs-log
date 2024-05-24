@@ -1,0 +1,25 @@
+#!/bin/dash
+
+PATH="$PATH:$(pwd)"
+
+usage_error() {
+    echo "usage: pigs-log" >&2
+    exit 1
+}
+
+pig_dir_error() {
+    echo "pigs-log: error: pigs repository directory .pig not found" >&2
+    exit 1
+}
+
+# Check for .pig folder
+
+if [ ! -d  '.pig' ]; then
+    pig_dir_error
+fi
+
+if ! [ $# -eq 0 ]; then
+    usage_error
+fi
+
+tac .pig/log/HEAD

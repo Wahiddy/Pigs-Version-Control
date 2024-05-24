@@ -1,0 +1,72 @@
+#!/bin/dash
+
+PATH="$PATH:$(pwd)"
+
+usage_error() {
+    echo "usage: pigs-add <filenames>" >&2
+    exit 1
+}
+
+file_error() {
+    echo "pigs-add: error: can not open '$file'" >&2
+    exit 1
+}
+
+pig_dir_error() {
+    echo "pigs-add: error: pigs repository directory .pig not found" >&2
+    exit 1
+}
+
+remove_from_index() {
+    sed -i "/^.* $1$/d" '.pig/index'          # remove previous iterations of files from index
+    sed -i '/^[[:space:]]*$/d' '.pig/index'   # remove newline with only whitespace
+}
+
+# Check for .pig folder
+if [ ! -d  '.pig' ]; then
+    pig_dir_error
+fi
+
+# Check usage
+if [ $# -eq 0 ]; then
+    usage_error
+fi
+
+for file in "$@"; do
+
+    # Check if file exists
+    if [ ! -f "$file" ]; then
+        if grep -E "^.* $file$" < '.pig/index' > '/dev/null'; then
+            remove_from_index "$file"
+            exit 0
+        else
+            file_error
+        fi
+    fi
+
+    # Calculate digest
+    digest=$(sha1sum "$file")
+
+    # Remove file from index
+    remove_from_index "$file"
+
+    # Append digest to changelog
+    if [ ! -e ".pig/changelog/$file" ]; then
+        touch ".pig/changelog/$file"
+        echo "$digest" >> ".pig/changelog/$file"
+    else
+        echo "$digest" >> ".pig/changelog/$file"
+    fi
+
+    # Add file to all_files list
+    echo "$file" >> '.pig/all_files'
+    sort '.pig/all_files' -o '.pig/all_files'
+
+    echo "$digest" >> '.pig/index'              # update the new sha code for file into index
+
+    # Create new object with contents of file
+    obj_file=$(echo "$digest" | cut -d' ' -f1)
+    if [ ! -f ".pig/objects/$obj_file" ]; then
+        cat "$file" > ".pig/objects/$obj_file"
+    fi
+done

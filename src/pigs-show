@@ -1,0 +1,85 @@
+#!/bin/dash
+
+PATH="$PATH:$(pwd)"
+
+pig_dir_error() {
+    echo "pigs-show: error: pigs repository directory .pig not found" >&2
+    exit 1
+}
+
+usage_error() {
+    echo 'usage: pigs-show <commit>:<filename>' >&2
+    exit 1
+}
+
+unknown_commit_error() {
+    echo "pigs-show: error: unknown commit '$commit_num'" >&2
+    exit 1
+}
+
+commit_error() {
+    echo "pigs-show: error: '$file' not found in commit $commit_num" >&2
+    exit 1
+}
+
+index_error() {
+    echo "pigs-show: error: '$file' not found in index" >&2
+    exit 1
+}
+
+# Check for .pig folder
+if [ ! -d  '.pig' ]; then
+    pig_dir_error
+fi
+
+# Check valid usage
+if ! [ $# -eq 1 ]; then
+    usage_error
+fi
+
+# Check valid usage of arg, containing at least :
+case "$1" in
+    *:*)
+        ;;
+    *) 
+        usage_error
+        ;;
+esac
+
+commit_num=$(echo "$1" | cut -d':' -f1)
+file=$(echo "$1" | cut -d':' -f2-)
+
+# Case where no commit number is given 
+if [ "$commit_num" = '' ] 2>'/dev/null'; then
+
+    grep -E "^.* $file$" < '.pig/index' >'/dev/null'                    # check if file exists in index
+    file_exists="$?"
+    if [ "$file_exists" -eq 0 ]; then
+        hash=$(grep -E "^.* $file$" < '.pig/index' | cut -d' ' -f1)     # get hash associated with file
+        cat ".pig/objects/$hash"                                        # display contents of file
+        exit 0
+    else 
+        index_error
+    fi
+fi
+
+# Check if commit number is a string
+if ! [ "$commit_num" -eq "$commit_num" ] 2>'/dev/null'; then
+    unknown_commit_error
+fi
+
+# Check if commit number even exists
+if ! [ -f ".pig/objects/trees/$commit_num" ]; then
+    unknown_commit_error
+fi
+
+# Case where commit number is given
+grep -E "^.* $file$" < ".pig/objects/trees/$commit_num" >'/dev/null'                    # check if file exists in commit
+file_exists="$?"
+if [ "$file_exists" -eq 0 ]; then
+    hash=$(grep -E "^.* $file$" < ".pig/objects/trees/$commit_num" | cut -d' ' -f1)     # get hash associated with file
+    cat ".pig/objects/$hash"                                                            # display contents of file
+    exit 0
+else 
+    commit_error
+fi

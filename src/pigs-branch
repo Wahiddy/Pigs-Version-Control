@@ -1,0 +1,113 @@
+#!/bin/dash
+
+PATH="$PATH:$(pwd)"
+
+usage_error() {
+    echo "usage: pigs-branch [-d] <branch>" >&2
+    exit 1
+}
+
+pig_dir_error() {
+    echo "pigs-branch: error: pigs repository directory .pig not found" >&2
+    exit 1
+}
+
+branch_commit_error() {
+    echo "pigs-branch: error: this command can not be run until after the first commit" >&2
+    exit 1
+}
+
+branch_required_error() {
+    echo "pigs-branch: error: branch name required" >&2
+    exit 1
+}
+
+no_branch_error() {
+    echo "pigs-branch: error: branch '$1' doesn't exist" >&2
+    exit 1
+}
+
+already_exists_error() {
+    echo "pigs-branch: error: branch '$1' already exists" >&2
+    exit 1
+}
+
+delete_master_error() {
+    echo "pigs-branch: error: can not delete branch 'master': default branch" >&2
+    exit 1
+}
+
+list_branches() {
+    sort '.pig/log/refs/branches'
+    exit 0
+}
+
+delete_branch() {
+    if [ "$1" = 'master' ]; then
+        delete_master_error
+    fi
+
+    if ! grep -E "^$1$" < '.pig/log/refs/branches' > '/dev/null'; then
+        no_branch_error "$1"
+    fi
+    sed -i "/^$1$/d" '.pig/log/refs/branches'          
+    sed -i '/^[[:space:]]*$/d' '.pig/log/refs/branches' 
+    echo "Deleted branch '$1'"
+    exit 0 
+}
+
+create_branch() {  
+    if grep -E "^$1$" < '.pig/log/refs/branches' > '/dev/null'; then
+        already_exists_error "$1"
+    fi
+    echo "$1" >> '.pig/log/refs/branches'
+    exit 0
+}
+
+# Check for .pig folder
+if [ ! -d  '.pig' ]; then
+    pig_dir_error
+fi
+
+if [ ! -s '.pig/prev_index' ]; then
+    branch_commit_error
+fi
+
+if [ $# -eq 0 ]; then
+    list_branches
+fi
+
+if [ $# -gt 2 ]; then
+    usage_error
+fi
+
+delete=false
+file_given=false
+
+# Get options
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -d)
+            delete=true
+            shift
+            ;;
+        -*)
+            usage_error
+            ;;
+        *)
+            file_given=true
+            break
+            ;;
+    esac
+done
+
+if [ "$delete" = true ] && [ "$file_given" = false ]; then
+    branch_required_error
+elif [ "$delete" = true ] && [ "$file_given" = true ]; then
+    delete_branch "$1"
+elif [ "$delete" = false ] && [ "$file_given" = true ]; then
+    create_branch "$1"
+elif [ "$delete" = false ] && [ "$file_given" = false ]; then
+    list_branches
+fi
+

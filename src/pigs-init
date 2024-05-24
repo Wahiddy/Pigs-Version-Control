@@ -1,0 +1,39 @@
+#!/bin/dash
+
+PATH="$PATH:$(pwd)"
+
+usage_error() {
+    echo usage: pigs-init >&2
+    exit 1
+}
+
+pig_dir_error() {
+    echo pigs-init: error: .pig already exists >&2
+    exit 1
+}
+
+make_pigs() {
+    mkdir '.pig'
+    mkdir .pig/objects
+    mkdir .pig/objects/commits      # contains all commits on master
+    mkdir .pig/objects/trees        # contains commit snapshot of files
+    mkdir .pig/changelog            # keep track of all changes
+
+    touch .pig/index                # create index file
+    touch .pig/prev_index
+    touch .pig/all_files            # keep track of all files to ever be added 
+
+    echo 0 > .pig/objects/idx       # to keep count of commit numbering scheme
+
+    echo Initialized empty pigs repository in .pig
+} 
+
+if ! [ $# -eq 0 ]; then
+    usage_error
+fi
+
+if [ -d '.pig' ]; then
+    pig_dir_error
+else 
+    make_pigs
+fi

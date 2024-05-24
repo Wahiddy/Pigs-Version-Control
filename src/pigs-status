@@ -1,0 +1,104 @@
+#!/bin/dash
+
+PATH="$PATH:$(pwd)"
+
+usage_error() {
+    echo 'usage: pigs-status' >&2
+    exit 1
+}
+
+pig_dir_error() {
+    echo 'pigs-status: error: pigs repository directory .pig not found' >&2
+    exit 1 
+}
+
+# To get a record of all files in current dir and in repo
+create_files_record() {
+    while IFS= read -r line; do
+        echo "$line" >> "$TMP_FILE"
+    done < '.pig/all_files'
+
+    if [ -n "$(ls)" ]; then
+        for file in *; do
+            echo "$file" >> "$TMP_FILE"
+        done
+    fi
+    sort -u "$TMP_FILE" -o "$TMP_FILE"
+}
+
+# Remove temporary file on script exit
+trap 'rm -f TMP_FILE*' EXIT
+
+# Create temporary file
+TMP_FILE="$(mktemp)"
+
+# Check if .pig directory exists
+if ! [ -d '.pig' ]; then
+    pig_dir_error
+fi
+
+# Check if any arguments are provided
+if ! [ $# -eq 0 ]; then
+    usage_error
+fi
+
+create_files_record
+
+while IFS= read -r file; do
+    index_stage=$(grep -E "^.* $file$" < '.pig/index' | cut -f1 -d' ')
+    previous_index_stage=$(grep -E "^.* $file$" < '.pig/prev_index' | cut -f1 -d' ')
+
+    # Skip files with no changes in index, current working directory, and previous commit
+    if [ ! -e "$file" ] && [ -z "$index_stage" ] && [ -z "$previous_index_stage" ]; then
+        continue
+    fi
+
+    # File deleted cases
+    if [ ! -e "$file" ]; then
+        if [ -z "$previous_index_stage" ]; then
+            status='added to index, file deleted'
+        elif [ "$index_stage" != "$previous_index_stage" ] && [ -n "$index_stage" ] && [ -n "$previous_index_stage" ]; then
+            status='file deleted, changes staged for commit'
+        elif [ -n "$index_stage" ]; then
+            status='file deleted'
+        elif [ -n "$previous_index_stage" ]; then
+            status='file deleted, deleted from index'
+        fi
+        echo "$file - $status"
+        continue
+    # Not deleted
+    else
+        current_stage=$(sha1sum "$file" | cut -f1 -d' ')
+    fi
+
+    # File is untracked or deleted from index
+    if [ -z "$index_stage" ]; then
+        if [ -e "$file" ] && [ -z "$previous_index_stage" ]; then
+            status='untracked'
+        elif [ -e "$file" ]; then 
+            status='deleted from index'
+        fi
+    # File status comparison
+    elif [ "$index_stage" = "$previous_index_stage" ]; then
+        if [ -e ".pig/objects/$current_stage" ] && [ "$index_stage" = "$current_stage" ]; then
+            status='same as repo'
+        elif ! [ "$index_stage" = "$current_stage" ]; then
+            status='file changed, changes not staged for commit'
+        fi
+    # File changes made
+    elif [ "$index_stage" = "$current_stage" ]; then
+        if [ -z "$previous_index_stage" ]; then
+            status='added to index'
+        elif [ -n "$previous_index_stage" ]; then
+            status='file changed, changes staged for commit'
+        fi
+    elif ! [ "$index_stage" = "$current_stage" ]; then
+        if [ -z "$previous_index_stage" ] && [ -e "$file" ]; then
+            status='added to index, file changed'
+        elif [ -n "$current_stage" ]; then
+            status='file changed, different changes staged for commit'
+        fi
+    fi
+
+    echo "$file - $status"
+done < "$TMP_FILE"
